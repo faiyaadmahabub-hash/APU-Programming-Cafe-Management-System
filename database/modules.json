@@ -1,0 +1,30 @@
+{
+  "e5a9029c-f74f-4f25-8e44-7d11c37fa02c": {
+    "trainer": "a07d2389-f146-4f85-bba5-dc62300fb331",
+    "language": "python",
+    "level": "advanced",
+    "name": "Advanced Python",
+    "schedule": ["2023-12-25T12:00:00", "2024-12-20T10:00:00", "2025-12-25T12:00:00"],
+    "students": [
+      {
+        "id": "e37aaa59-0bce-4b4a-afb9-e475c2c3d665",
+        "enrolment_month": "december",
+        "invoice": 0
+      }
+    ]
+  },
+  "db375425-c3e4-4a7d-85c1-ba6902d7e980": {
+    "trainer": "30f95807-ed01-4127-a7d4-362a6e73cc2a",
+    "language": "c",
+    "level": "advanced",
+    "name": "c advanced",
+    "schedule": [],
+    "students": [
+      {
+        "id": "e37aaa59-0bce-4b4a-afb9-e475c2c3d665",
+        "enrolment_month": "december",
+        "invoice": 1000
+      }
+    ]
+  }
+}

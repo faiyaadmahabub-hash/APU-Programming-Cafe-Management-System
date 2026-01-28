@@ -1,0 +1,22 @@
+{
+  "2073ba8a-0537-4fc2-91f5-55e0701f6546": {
+    "sender": "4a10cfae-66fd-410e-8e66-bb5a2696b2c7",
+    "type": "suggestion",
+    "message": "make the thing better"
+  },
+  "200e6962-bb66-43fb-ab7c-84058719de84": {
+    "sender": "4a10cfae-66fd-410e-8e66-bb5a2696b2c7",
+    "type": "complaint",
+    "message": "raise my salary"
+  },
+  "699a4dc0-50d0-453e-8934-67755bbf01f5": {
+    "sender": "a07d2389-f146-4f85-bba5-dc62300fb331",
+    "type": "suggestion",
+    "message": "moneyyyyyy"
+  },
+  "77f2a4ad-f83d-493d-8e61-aad4441ab760": {
+    "sender": "a07d2389-f146-4f85-bba5-dc62300fb331",
+    "type": "suggestion",
+    "message": "fuck u lol"
+  }
+}
