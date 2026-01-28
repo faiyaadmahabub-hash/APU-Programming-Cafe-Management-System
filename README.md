@@ -1132,9 +1132,9 @@ copies or substantial portions of the Software.
 
 ## 📧 Support & Contact
 
-**Project Maintainer:** [Your Name]  
-**Email:** your.email@example.com  
-**GitHub:** [@yourusername](https://github.com/yourusername)
+**Project Maintainer:** Faiyad Mahabub Tasin  
+**Email:** faiyaadtasin121@gmail.com  
+**GitHub:** https://github.com/faiyaadmahabub-hash
 
 For issues, questions, or suggestions:
 - Open an Issue on GitHub
@@ -1176,9 +1176,9 @@ This project demonstrates:
 
 ## 🎉 Credits
 
-- **Developer:** [Your Name]
+- **Developer:** Faiyad Mahabub Tasin
 - **Institution:** Asia Pacific University
-- **Course:** Python Programming / Management Systems
+- **Course:** Python Programming
 - **Version:** 1.0
 - **Last Updated:** January 28, 2026
 
@@ -1219,4 +1219,3 @@ python -m pytest tests/
 
 **Happy Coding! 🚀**
 
-*For the latest updates, star this repository and follow for notifications.*
