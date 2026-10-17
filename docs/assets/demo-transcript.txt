@@ -6,23 +6,23 @@ Enter as:
 3. Trainer
 4. Student
 Enter choice: 1
- 
+
 Action:
 1. Login
 2. Register
 Enter choice: 1
- 
+
 Logging in as Administrator...
 Name: Demo administrator
  Password: demo-only
- 
+
 Administrator Dashboard
 1. Edit profile
 2. Manage trainer
 3. View feedbacks
 4. Exit
 Enter choice: 4
- 
+
 API persistence demonstration:
 Module: Python demo
 Schedule: 2026-11-02T10:00:00

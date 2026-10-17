@@ -1,4 +1,4 @@
-﻿# Verification
+# Verification
 
 Date: 17 October 2026. Environment: Windows, PowerShell, Python 3.10.9; standard library application and checks. Pillow 12.0.0 was used only to render the transcript image; it is not an application dependency.
 
@@ -8,7 +8,7 @@ Date: 17 October 2026. Environment: Windows, PowerShell, Python 3.10.9; standard
 | `python -B scripts/demo.py` | Exit 0. Real administrator dashboard login/exit and module API create/schedule/add-student/pay/delete in a disposable app copy. Assertions confirm persisted invoice and deletion. |
 | `git diff -- database` | No bundled record changes. |
 
-The demo replies shown in the transcript are the prompt-fed inputs from `scripts/demo.py`, all fictional. Capture command (PowerShell):
+Blank and trailing whitespace is normalized in the saved transcript; the displayed content is unchanged. The demo replies shown in the transcript are the prompt-fed inputs from `scripts/demo.py`, all fictional. Capture command (PowerShell):
 
 ```powershell
 python -B scripts/demo.py | Set-Content -Encoding utf8 docs/assets/demo-transcript.txt
