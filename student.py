@@ -43,9 +43,9 @@ def request(student_id, module, level):
     for student in students:
         if student["id"] == student_id:
             student["requests"][request_id] = request_data
-db_path = os.path.join(os.path.dirname(__file__), "database", "students.json")
-    with open(db_path
-    with open("students.json", "w") as file:
+
+    db_path = os.path.join(os.path.dirname(__file__), "database", "students.json")
+    with open(db_path, "w") as file:
         json.dump(students, file)
 
     return request_id
@@ -55,7 +55,7 @@ def show_request_status(student_id):
     for student in students:
         if student["id"] == student_id:
             for i, requests in enumerate(list(student["requests"].values())):
-                print(f"{i+1}. Module: {requests["module_name"]}, Level: {requests["level"]}, Status: {requests["status"]}")
+                print(f"{i+1}. Module: {requests['module_name']}, Level: {requests['level']}, Status: {requests['status']}")
 
 
 
@@ -64,9 +64,9 @@ def delete_requests(student_id, request_id):
         if student["id"] == student_id:
             for request in (list(student["requests"].values())):
                 if request["status"] == "pending":
+                    del student["requests"][request_id]
                     db_path = os.path.join(os.path.dirname(__file__), "database", "students.json")
-                    with open(db_pathequest_id]
-                    with open("students.json", "w") as file:
+                    with open(db_path, "w") as file:
                         json.dump(students, file)
                 else:
                     pending = False

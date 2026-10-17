@@ -54,9 +54,9 @@ def add_module(trainer_id, module_id):
     for trainer in data:
         if trainer["id"] == trainer_id:
             trainer["modules"].append(module_id)
-db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
-    with open(db_path
-    with open("database/trainers.json", "w") as write_file:
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
@@ -64,9 +64,9 @@ def add_feedback(trainer_id, feedback_id):
     for trainer in data:
         if trainer["id"] == trainer_id:
             trainer["feedbacks"].append(feedback_id)
-db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
-    with open(db_path
-    with open("database/trainers.json", "w") as write_file:
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
@@ -74,17 +74,17 @@ def change_password(trainer_id, new_password):
     for trainer in data:
         if trainer["id"] == trainer_id:
             trainer["password"] = new_password
-db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
-    with open(db_path
-    with open("database/trainers.json", "w") as write_file:
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
 def change_name(trainer_id, new_name):
     for trainer in data:
         if trainer["id"] == trainer_id:
-    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
-    with open(db_path
+            trainer["name"] = new_name
 
-    with open("database/trainers.json", "w") as write_file:
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "trainers.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)

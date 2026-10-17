@@ -42,18 +42,18 @@ def add_schedule(module_id, date_iso):
 
 def remove_schedule(module_id, index):
     del data[module_id]["schedule"][index]
-db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path
-    with open("database/modules.json", "w") as write_file:
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
 def edit_schedule(module_id, index, date_iso):
     data[module_id]["schedule"][index] = date_iso
     data[module_id]["schedule"].sort()
-db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path
-    with open("database/modules.json", "w") as write_file:
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
@@ -72,10 +72,10 @@ def create(
         "name": module_name,
         "schedule": [],
         "students": [],
-    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path
+    }
 
-    with open("database/modules.json", "w") as write_file:
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
     return uuid
@@ -84,31 +84,31 @@ def create(
 def add_student(module_id, student_id, enrolment_month):
     data[module_id]["students"].append(
         {"id": student_id, "enrolment_month": enrolment_month, "invoice": 1000}
-    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path
+    )
 
-    with open("database/modules.json", "w") as write_file:
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
 def pay_student_invoice(module_id, student_id):
     for student in data[module_id]["students"]:
         if student["id"] == student_id:
-    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path
+            student["invoice"] = 0
 
-    with open("database/modules.json", "w") as write_file:
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
 def remove_student(student_id):
     for module_id, module_data in data.items():
         for index, module_student in enumerate(module_data["students"]):
-    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path= student_id:
+            if module_student["id"] == student_id:
                 del data[module_id]["students"][index]
 
-    with open("database/modules.json", "w") as write_file:
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)
 
 
@@ -126,9 +126,9 @@ def get(module_id):
     return data[module_id]
 
 
-def db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
-    with open(db_path
+def delete(module_id):
     del data[module_id]
 
-    with open("database/modules.json", "w") as write_file:
+    db_path = os.path.join(os.path.dirname(__file__), "..", "database", "modules.json")
+    with open(db_path, "w") as write_file:
         json.dump(data, write_file)

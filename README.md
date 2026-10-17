@@ -1,1219 +1,611 @@
-# 🎓 APU Café Management System
+# APU Programming Cafe Management System
 
-> A comprehensive Python-based role-based management system designed for café and educational institutions to efficiently manage users, courses, enrollment, and feedback across different organizational roles.
+A console application for running a small **programming-course "cafe"**: students ask to join Python, Java or C courses, lecturers register students and approve those requests, trainers manage the modules they teach and send feedback, and administrators manage trainers and read that feedback. It was written as a group assignment for a Python Programming module at Asia Pacific University (the accompanying report is dated February 2024).
 
-[![Python Version](https://img.shields.io/badge/Python-3.7+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)]()
+It is plain Python with **no third-party packages**. Every user type logs in through one menu in `main.py`, then lands in a role-specific dashboard that runs as a separate Python process. All data lives in six hand-readable **JSON files** in `database/`.
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Project Architecture](#project-architecture)
-- [Installation & Setup](#installation--setup)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [File Documentation](#file-documentation)
-- [Database Schema](#database-schema)
-- [Usage Guide](#usage-guide)
-- [Role-Based Features](#role-based-features)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+> **Current status:** the damaged Python source has been repaired. All four roles can log in, open their dashboard and exit in the regression checks. This remains a coursework application with incomplete features and data-consistency problems; see [Verification](#current-status-of-this-snapshot) and [Issues](#issues-found).
 
 ---
 
-## 🎯 Overview
+## Table of contents
 
-**APU Café Management System** is a multi-user, role-based application built entirely in Python. It provides a complete suite of tools for managing users, courses, enrollments, payments, and feedback in an educational café environment. The system uses a file-based JSON database for persistent data storage and implements a command-line interface (CLI) for user interaction.
-
-### Key Highlights
-
-- 🔐 **Role-Based Access Control** - 4 distinct user roles with specialized features
-- 📊 **Multi-Module Management** - Complete course/module management system
-- 💼 **User Management** - Registration, authentication, and profile management
-- 📝 **Feedback System** - Collect suggestions and complaints from users
-- 💾 **Persistent Storage** - JSON-based database with data integrity
-- 🖥️ **Interactive CLI** - User-friendly command-line interfaces
-- ✅ **Production-Ready** - Tested and debugged for stability
-
----
-
-## ✨ Features
-
-### Core Features
-
-| Feature | Description |
-|---------|-------------|
-| **User Authentication** | Secure login system with role-based routing |
-| **Role-Based Access** | 4 different roles with specialized permissions |
-| **Profile Management** | Users can update their personal information |
-| **Course Management** | Create, edit, and manage courses/modules |
-| **Enrollment System** | Students can enroll in courses and manage modules |
-| **Payment Tracking** | Track and manage student invoices and payments |
-| **Feedback Collection** | Gather suggestions and complaints from users |
-| **Request Management** | Students can submit and manage requests |
-| **Data Persistence** | All data saved in JSON database files |
-
-### Security Features
-
-- User authentication with password protection
-- Role-based access control (RBAC)
-- Secure user data separation
-- Password-protected operations
-
-### Data Management Features
-
-- User profile management
-- Complete CRUD operations for courses
-- Student enrollment tracking
-- Invoice and payment management
-- Feedback and complaint logging
-- Request submission and tracking
+1. [What it does](#what-it-does)
+2. [Current status of this snapshot](#current-status-of-this-snapshot)
+3. [Architecture](#architecture)
+4. [How login and launch work](#how-login-and-launch-work)
+5. [Roles and menus](#roles-and-menus)
+6. [The enrolment workflow](#the-enrolment-workflow)
+7. [Data model](#data-model)
+8. [Project structure](#project-structure)
+9. [Setup and run](#setup-and-run)
+10. [Code walkthrough](#code-walkthrough)
+11. [Example session](#example-session)
+12. [Troubleshooting](#troubleshooting)
+13. [Issues found](#issues-found)
+14. [Security and privacy notes](#security-and-privacy-notes)
+15. [The documentation PDF versus the code](#the-documentation-pdf-versus-the-code)
+16. [Next steps](#next-steps)
 
 ---
 
-## 🏗️ Project Architecture
+## What it does
 
-### Architecture Pattern
+- One entry point (`main.py`) asks for a **role** (Administrator, Lecturer, Trainer, Student) and an **action** (Login or Register).
+- Login compares the name and password against `database/<role>s.json`; on success it starts the matching dashboard in a child process and passes the user's UUID on the command line.
+- **Administrator**: edit own profile, register a trainer (with a first module) or delete a trainer, read all trainer feedback.
+- **Lecturer**: edit own profile, register or delete students, and turn a student's enrolment request into an enrolment.
+- **Trainer**: edit own profile, rename a module and edit its schedule, send a suggestion or complaint to the administrators.
+- **Student**: edit own profile (password, contact number, address), request a module (language and level), view schedules, and pay invoices. The schedule of an unpaid module is hidden.
 
-The project follows a **layered architecture** pattern:
-
-```
-┌─────────────────────────────────┐
-│     Display Layer (CLI)         │
-│  (Role-Based Interfaces)        │
-└──────────────┬──────────────────┘
-               │
-┌──────────────┴──────────────────┐
-│       API/Business Layer        │
-│  (User, Student, Lecturer, etc) │
-└──────────────┬──────────────────┘
-               │
-┌──────────────┴──────────────────┐
-│      Data Access Layer          │
-│  (File I/O, JSON Operations)    │
-└──────────────┬──────────────────┘
-               │
-┌──────────────┴──────────────────┐
-│     Database Layer (JSON)       │
-│  (Persistent Data Storage)      │
-└─────────────────────────────────┘
-```
-
-### Module Communication Flow
-
-```
-main.py (Entry Point)
-    ↓
-    ├─→ user.py (Authentication)
-    ├─→ display/{role}.py (CLI Interface)
-    │   ↓
-    │   └─→ api/{role}.py (Business Logic)
-    │       ↓
-    │       └─→ database/{role}s.json (Data)
-    └─→ utils.py (Utility Functions)
-```
+| Technology | Role |
+|---|---|
+| Python 3.10 or newer | Language. `match` / `case` statements are used throughout, so 3.10 is the minimum |
+| Standard library only | `json`, `uuid`, `os`, `sys`, `subprocess`, `datetime`, `random`, `typing` |
+| JSON files in `database/` | The whole "database", rewritten in full on every change |
+| Text menus (`input()` / `print()`) | The user interface |
 
 ---
 
-## 💻 Installation & Setup
+## Current status of this snapshot
 
-### Prerequisites
+The original upload had truncated file-writing statements, misplaced indentation, missing closing delimiters and a missing function header in `api/module.py`, `api/trainer.py` and the legacy root `student.py`. Those damaged statements have been restored. The legacy request-status f-string is also compatible with Python 3.10 again.
 
-- **Python 3.7 or higher**
-- **pip** (Python package manager)
-- **Windows, macOS, or Linux** (cross-platform compatible)
+Verification performed with Python **3.10.9**:
 
-### Step 1: Clone the Repository
+- All 15 application Python files pass the Python 3.10 syntax check.
+- Administrator, Lecturer, Trainer and Student can each log in through `main.py`, reach the correct dashboard and exit.
+- Six regression tests check syntax, the four login/dashboard paths, persisted module creation and deletion, schedule edits, enrollment and invoice updates, trainer profile/module/feedback updates, trainer deletion, and the legacy request display/delete path.
+- Tests use disposable app copies with fictional JSON fixtures. They do not change the six supplied database files.
+- The same tests fail against the original upload, reproducing its syntax damage.
 
-```bash
-git clone https://github.com/yourusername/apu-cafe-management.git
-cd apu-cafe-management
-```
-
-### Step 2: Navigate to Project Directory
+Run the checks from the repository root:
 
 ```bash
-cd apu_cafe-main
+python -B -m unittest discover -s tests -v
 ```
 
-### Step 3: Install Dependencies
-
-This project uses only built-in Python libraries (no external dependencies required).
-
-```bash
-# No installation needed! The project uses standard library modules:
-# - subprocess
-# - json
-# - os
-# - uuid (for unique ID generation)
-```
-
-### Step 4: Verify Installation
-
-```bash
-# Test if Python is installed correctly
-python --version
-
-# List the project structure
-ls -la  # macOS/Linux
-dir     # Windows
-```
-
-### Step 5: Check Database Files
-
-Ensure all database JSON files exist in the `database/` directory:
-
-```bash
-cd database
-ls -la
-```
-
-You should see:
-- `administrators.json`
-- `lecturers.json`
-- `trainers.json`
-- `students.json`
-- `modules.json`
-- `feedbacks.json`
+Passing these checks establishes startup and the repaired operations; it does not establish that every menu option works. The remaining problems below were found by reading the code and are not all reproduced by the tests.
 
 ---
 
-## 🚀 Quick Start
+## Architecture
 
-### Running the Application
+```mermaid
+flowchart LR
+    U["User at a terminal"] --> M["main.py<br/>role + Login / Register"]
+
+    M -->|"check / register"| AU["api/user.py<br/>generic user functions"]
+    AU <--> DB[("database/*.json<br/>administrators, lecturers,<br/>trainers, students,<br/>modules, feedbacks")]
+
+    M -->|"subprocess:<br/>python -m display.ROLE USER_ID"| D["display/ROLE.py<br/>menus for that role"]
+
+    D --> UT["utils.py<br/>select()"]
+    D --> API["api/ROLE.py, module.py,<br/>feedback.py<br/>data functions"]
+    API <--> DB
+```
+
+Three layers:
+
+| Layer | Folder | Job |
+|---|---|---|
+| Entry | `main.py` | Pick role, log in or register, start a dashboard |
+| Display | `display/` | Print menus, read input, call API functions. Each file is a script that reads the user id from `sys.argv[1]` and starts its dashboard at import time |
+| API | `api/` | Load a JSON file into memory when the module is imported, change it, write the whole file back |
+
+---
+
+## How login and launch work
+
+There is no session object, token, or logout. The "session" is simply the child process that runs the dashboard; choosing *Exit* ends it.
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant M as main.py
+    participant AU as api/user.py
+    participant DB as database/ROLEs.json
+    participant D as display/ROLE.py (child process)
+
+    U->>M: role number, then 1 (Login)
+    U->>M: name and password
+    M->>AU: check(role, name, password)
+    AU->>DB: load list of records
+    AU-->>M: exists, match, id
+    alt name not found
+        M-->>U: User does not exist!
+    else wrong password
+        M-->>U: Wrong password!
+    else match
+        M->>D: python -m display.ROLE USER_ID  (cwd = folder of main.py)
+        D->>DB: load and modify through api/*.py
+        D-->>U: dashboard menu until Exit
+    end
+```
+
+Registration (`2. Register`) calls `user.check` first and prints `User already exists!` if the **name** is already taken for that role. Otherwise `user.register` appends `{id, name, password}` to the file. It does not log the new user in and prints nothing on success.
+
+Passwords are stored and compared as plain text (`==`).
+
+---
+
+## Roles and menus
+
+```mermaid
+flowchart TD
+    MAIN["main.py<br/>1 Administrator, 2 Lecturer, 3 Trainer, 4 Student<br/>then 1 Login or 2 Register"]
+
+    MAIN --> A
+    MAIN --> L
+    MAIN --> T
+    MAIN --> S
+
+    subgraph A["Administrator dashboard"]
+        A1["1 Edit profile<br/>name, password"]
+        A2["2 Manage trainer"]
+        A21["Register trainer<br/>name, language, level"]
+        A22["Delete trainer by id"]
+        A23["Edit trainer<br/>(listed, not implemented)"]
+        A3["3 View feedbacks<br/>table: type, sender, message"]
+        A4["4 Exit"]
+        A2 --> A21
+        A2 --> A22
+        A2 --> A23
+    end
+
+    subgraph L["Lecturer dashboard"]
+        L1["1 Edit profile<br/>name, password"]
+        L2["2 Manage students"]
+        L21["Register student<br/>(auto-enrols in a random<br/>matching module)"]
+        L22["Delete student"]
+        L23["Approve enrolment requests<br/>(empty stub)"]
+        L3["3 View enrollment requests<br/>approve one"]
+        L4["4 Exit"]
+        L2 --> L21
+        L2 --> L22
+        L2 --> L23
+    end
+
+    subgraph T["Trainer dashboard"]
+        T1["1 Edit profile<br/>name, password"]
+        T2["2 Edit module info"]
+        T21["Edit name"]
+        T22["Edit schedule<br/>edit, add, remove"]
+        T23["View module students"]
+        T3["3 View all students<br/>(empty stub)"]
+        T4["4 Send feedback<br/>suggestion or complaint"]
+        T5["5 Exit"]
+        T2 --> T21
+        T2 --> T22
+        T2 --> T23
+    end
+
+    subgraph S["Student dashboard"]
+        S1["1 Edit profile<br/>password, contact, address"]
+        S2["2 View schedule<br/>paid modules only"]
+        S3["3 Manage enrollment requests<br/>send, delete"]
+        S4["4 View invoices<br/>pay a module"]
+        S5["5 Exit"]
+    end
+```
+
+### Menu details (as written in the code)
+
+**Administrator** (`display/administrator.py`)
+
+| Menu | Behaviour |
+|---|---|
+| Edit profile | Change name or password. No length check, no confirmation |
+| Manage trainer, Register | Asks for a trainer name, a language (`python`, `java`, `c`) and a level (`beginner`, `intermediate`, `advanced`). Creates a trainer with the default password `123` and one module named `"<language> <level>"`, then prints the trainer's UUID |
+| Manage trainer, Delete | Asks for the trainer's UUID. Deletes the trainer and all modules listed on the trainer. Prints whether the id existed |
+| Manage trainer, Edit | Printed in the menu but there is no `case 3`, so the program ends silently |
+| View feedbacks | Prints a padded table of Type, Sender, Message for all feedback, then waits for Enter |
+
+**Lecturer** (`display/lecturer.py`)
+
+| Menu | Behaviour |
+|---|---|
+| Edit profile | Change name or password |
+| Manage students, Register | Asks for name, TP number, contact number, address, module type, module level, enrolment month. Creates the student (password `123`, email `<tp number lower-cased>@mail.apu.edu.my`, `lecturer` set to the registering lecturer), then enrols them in a **randomly chosen** module that matches the language and level |
+| Manage students, Delete | Lists students as `name tp_number`, deletes the chosen one and removes them from module enrolment lists |
+| Manage students, Approve | Empty (`pass`); the program ends. Use main menu option 3 instead |
+| View enrollment requests | Lists `sender-uuid language level`, lets the lecturer pick one and an enrolment month, enrols the student in a random matching module. There is no reject option |
+
+**Trainer** (`display/trainer.py`)
+
+| Menu | Behaviour |
+|---|---|
+| Edit profile | Change name or password |
+| Edit module info | Pick one of the trainer's modules, then: rename it, edit the schedule (edit / add / remove / view students), or view its students |
+| View all students | Empty (`pass`); the program ends |
+| Send feedback | Choose `suggestion` or `complaint`, type a message; stored in `feedbacks.json` and the feedback id is appended to the trainer's `feedbacks` list |
+
+Schedule entries are typed as `MM/DD/YYYY` and 24-hour `HH:MM`, and stored as ISO 8601 strings (for example `2025-12-25T12:00:00`). The list is re-sorted after every add or edit.
+
+**Student** (`display/student.py`)
+
+| Menu | Behaviour |
+|---|---|
+| Edit profile | Change password, contact number or address, then return to the same menu |
+| View schedule | For each enrolled module: if the invoice is not 0, prints "Unpaid" and hides the schedule; otherwise prints dates like `Monday, Dec 25 2023 - 12:00 PM`, or "No schedule for this module" |
+| Manage enrollment requests | Send a request (language and level) or delete one. A sent request is stored on both the student and their lecturer |
+| View invoices | Lists unpaid modules with the amount (`1000`). Choosing one sets its invoice to `0`. There is no amount entry or payment check. Prints `All modules paid!` when nothing is owed |
+
+---
+
+## The enrolment workflow
+
+```mermaid
+sequenceDiagram
+    actor S as Student
+    actor L as Lecturer
+    participant ST as students.json
+    participant LE as lecturers.json
+    participant MO as modules.json
+
+    S->>ST: add request {sender, status: pending, type, level}
+    S->>LE: copy of the same request under the student's lecturer
+    L->>LE: view requests, choose one and a month
+    L->>MO: find modules with same language and level
+    Note over L,MO: one is picked with random.randint
+    L->>ST: delete request, append module {id, month, invoice: 1000}
+    L->>MO: append student {id, month, invoice: 1000}
+    L->>LE: delete request
+    S->>ST: pay invoice (sets student-side invoice to 0)
+    S->>MO: read schedule (visible only when student-side invoice is 0)
+```
+
+Two things to know:
+
+- The invoice amount is a hard-coded `1000` per enrolment, in two places (`api/student.py` `add_module` and `api/module.py` `add_student`).
+- The invoice is stored twice (on the student and on the module's student list), but paying only changes the student's copy. The restored `module.pay_student_invoice` function updates the module's copy, but the student payment menu does not call it.
+
+---
+
+## Data model
+
+All records are keyed by UUID strings (`uuid.uuid4()`). Foreign keys are plain id strings; nothing enforces them.
+
+```mermaid
+erDiagram
+    ADMINISTRATOR {
+        string id PK
+        string name
+        string password
+    }
+    LECTURER {
+        string id PK
+        string name
+        string password
+        object requests "request id to request"
+    }
+    STUDENT {
+        string id PK
+        string lecturer FK
+        string name
+        string password
+        string tp_number
+        string email
+        string contact_number
+        string address
+        object requests "request id to request"
+        list modules "enrolments"
+    }
+    TRAINER {
+        string id PK
+        string name
+        string password
+        list modules "module ids"
+        list feedbacks "feedback ids"
+    }
+    MODULE {
+        string id PK "key in modules.json"
+        string trainer FK
+        string language
+        string level
+        string name
+        list schedule "ISO 8601 strings"
+        list students "enrolments"
+    }
+    FEEDBACK {
+        string id PK "key in feedbacks.json"
+        string sender
+        string type
+        string message
+    }
+
+    LECTURER ||--o{ STUDENT : "registers"
+    TRAINER ||--o{ MODULE : "teaches"
+    STUDENT }o--o{ MODULE : "enrolled (month, invoice)"
+    TRAINER ||--o{ FEEDBACK : "sends"
+```
+
+### File formats
+
+`administrators.json`, `lecturers.json`, `students.json` and `trainers.json` are **JSON arrays** of records. `modules.json` and `feedbacks.json` are **JSON objects keyed by id**.
+
+| File | Top level | Fields per record |
+|---|---|---|
+| `administrators.json` | array | `id`, `name`, `password` |
+| `lecturers.json` | array | `id`, `name`, `password`, `requests` (object) |
+| `students.json` | array | `id`, `lecturer`, `name`, `password`, `tp_number`, `email`, `contact_number`, `address`, `requests` (object), `modules` (array) |
+| `trainers.json` | array | `id`, `name`, `password`, `modules` (array of module ids), `feedbacks` (array of feedback ids) |
+| `modules.json` | object | `trainer`, `language`, `level`, `name`, `schedule` (array), `students` (array) |
+| `feedbacks.json` | object | `sender`, `type`, `message` |
+
+Shapes of the nested pieces (all values are placeholders):
+
+```jsonc
+// request  (inside lecturers[].requests and students[].requests, keyed by request id)
+{ "sender": "<student-id>", "status": "pending",
+  "module_request_type": "java", "module_request_level": "advanced" }
+
+// enrolment  (inside students[].modules and modules[id].students)
+{ "id": "<module-id or student-id>", "enrolment_month": "december", "invoice": 1000 }
+
+// module
+{ "trainer": "<trainer-id>", "language": "python", "level": "advanced",
+  "name": "Advanced Python",
+  "schedule": ["2025-12-25T12:00:00"],
+  "students": [ { "id": "<student-id>", "enrolment_month": "december", "invoice": 0 } ] }
+
+// feedback
+{ "sender": "<trainer-id>", "type": "suggestion", "message": "text" }
+```
+
+Allowed values used by the menus: `language` is `python`, `java` or `c`; `level` is `beginner`, `intermediate` or `advanced`; `type` is `suggestion` or `complaint`; `enrolment_month` is a lower-case month name; request `status` is only ever `pending` (an approved request is deleted, never marked).
+
+What the shipped sample data contains: 3 administrator rows, 1 lecturer, 1 student, 3 trainers, 2 modules and 4 feedback entries. They are test values (single-word names, `123` for TP number, phone and address). See [Security and privacy notes](#security-and-privacy-notes).
+
+---
+
+## Project structure
+
+```
+APU-Programming-Cafe-Management-System/
+├── main.py                  # Entry point: role + login/register, starts dashboards
+├── utils.py                 # select(message, items): validated numbered menu
+├── student.py               # LEGACY student-only prototype; not used by main.py
+├── student display.py       # LEGACY prototype menu (space in file name), unused
+├── api/
+│   ├── user.py              # Generic check / register / get / set for any role
+│   ├── administrator.py     # check, register (not used by the menus)
+│   ├── lecturer.py          # Lecturer records and requests
+│   ├── student.py           # Student records, modules, invoices, requests
+│   ├── trainer.py           # Trainer records, modules and feedback references
+│   ├── module.py            # Module records, schedules and enrolments
+│   └── feedback.py          # Feedback create / get / get_all
+├── display/
+│   ├── administrator.py     # Administrator dashboard
+│   ├── lecturer.py          # Lecturer dashboard
+│   ├── trainer.py           # Trainer dashboard
+│   └── student.py           # Student dashboard
+├── database/                # JSON "database" (six files, see Data model)
+├── tests/
+│   └── test_repaired_workflows.py  # Isolated regression checks
+├── .gitignore               # Local PDF, bytecode, OS metadata and local configuration
+└── README.md                # This guide
+```
+
+There are no `__init__.py` files in `api` or `display`; they work as namespace packages. The original documentation PDF remains in the local workspace but is ignored and no longer tracked in the current branch. Generated caches and OS metadata are also ignored.
+
+---
+
+## Setup and run
+
+### 1. Prerequisites
+
+- Python **3.10 or newer** (`match` statements). Nothing to `pip install`.
+- A terminal where the command `python` starts that same interpreter (see [Troubleshooting](#troubleshooting)).
+
+### 2. Run
+
+Always start from the repository root, because several API files open `database/...` relative to the current directory:
 
 ```bash
-cd apu_cafe-main
+cd APU-Programming-Cafe-Management-System
 python main.py
 ```
 
-### First-Time Setup
+Use the bundled sample accounts for a local demonstration, or register an administrator and create trainers and students through their role-specific menus. Login-menu registration for the other roles creates incomplete records; see [Issues](#issues-found). Keep a backup of `database/` before trying changes because the app writes to those files directly.
 
-1. **Run the application:**
-   ```bash
-   python main.py
-   ```
+### 3. Starting a dashboard directly
 
-2. **Choose a role:**
-   ```
-   Enter as:
-   1. Administrator
-   2. Lecturer
-   3. Trainer
-   4. Student
-   
-   Enter choice: [1-4]
-   ```
-
-3. **Choose an action:**
-   ```
-   Action:
-   1. Login
-   2. Register
-   
-   Enter choice: [1-2]
-   ```
-
-4. **Register as a new user** (first time):
-   ```
-   Name: [Enter your name]
-   Password: [Enter your password]
-   ```
-
-5. **Login** (subsequent times):
-   ```
-   Name: [Enter your name]
-   Password: [Enter your password]
-   ```
-
-### Example Session
+A dashboard can also be started without the login menu if you know a user's UUID from the matching JSON file:
 
 ```bash
-# Terminal Session
-$ python main.py
+python -m display.student <student-uuid>
+```
 
+Replace `student` with `administrator`, `lecturer` or `trainer`. The id is read from `sys.argv[1]`; there is no authentication at this level.
+
+---
+
+## Code walkthrough
+
+### `main.py`
+
+Runs at import time (no `if __name__ == "__main__"` guard).
+
+1. Prints the four roles and reads a number with `int(input(...))`.
+2. Prints `1. Login` / `2. Register` and reads another number.
+3. `match choices[1]` calls `handle_login()` or `handle_register()`; any other number ends the program silently.
+
+`handle_login()` calls `user.check`, prints one of the two error messages, or launches `subprocess.run(["python", "-m", "display.<role>", user_id], cwd=<folder of main.py>)`. `handle_register()` refuses an existing name, otherwise calls `user.register`.
+
+### `utils.py`
+
+One function, `select(message, items)`: prints a numbered list and loops until the user enters a valid number, then returns the chosen item. It is the only input helper that validates anything; every other menu uses a bare `int(input())`.
+
+### `api/user.py`
+
+Role-generic helpers. `load_data(type)` reads `database/<type>s.json` (so `administrator` becomes `administrators.json`).
+
+| Function | What it does |
+|---|---|
+| `check(type, name, password)` | Scans for the **first** record with that name. Returns `{exists, match, id}` (`id` is `False` unless the password matches) |
+| `register(type, name, password)` | Appends `{id, name, password}` with a new UUID and rewrites the file. Adds **no** role-specific fields (see Issues) |
+| `get(type, id)` | Returns one record or `None` |
+| `set(type, id, key, value)` | Sets one field and rewrites the file. Used by the administrator dashboard |
+
+### `api/` role modules
+
+Each file below loads its JSON into a module-level variable at import time, edits that in-memory copy, and rewrites the entire file.
+
+| Module | Functions | Parses |
+|---|---|---|
+| `administrator.py` | `check`, `register` | yes (unused by the dashboards, which go through `user.py`) |
+| `lecturer.py` | `get`, `check`, `register`, `change_name`, `change_password`, `add_request`, `remove_request`, `delete_request` | yes |
+| `student.py` | `get`, `get_all`, `register` (password `123`, derived email), `delete`, `change_password`, `change_contact`, `change_address`, `add_module` (invoice 1000), `pay_invoice`, `add_request` (returns id and data), `delete_request` | yes |
+| `feedback.py` | `create(sender, type, message)`, `get(id)`, `get_all()` | yes |
+| `module.py` | `set`, `add_schedule`, `remove_schedule`, `edit_schedule`, `create`, `add_student`, `pay_student_invoice`, `remove_student`, `get_filtered_modules(language, level)`, `get`, `delete` | yes; damaged bodies and file writes restored |
+| `trainer.py` | `delete` (also deletes assigned modules), `register` (default password `123`), `get`, `add_module`, `add_feedback`, `change_password`, `change_name` | yes; assignments and file writes restored |
+
+### `display/` dashboards
+
+Each file reads `sys.argv[1]`, loads the user, and calls `display_dashboard()` on the last line. Menus call each other recursively instead of looping, so a long session grows the call stack. After any handler that has no matching `case` (for example an out-of-range number) the script simply ends.
+
+### Legacy files in the repository root
+
+`student.py` and `student display.py` are an earlier student-only prototype (the display filename contains a space). The prototype requires a 6-character minimum for new passwords and prints colored messages, but it is not reachable from `main.py`. Its syntax is repaired; the prototype still has unfinished functions, a different request schema and an undefined `pending` variable in its menu, so use `display/student.py` for the actual application.
+
+---
+
+## Example session
+
+A transcript derived from the code (a fresh administrator, with placeholder values):
+
+```
+$ python main.py
 Enter as:
 1. Administrator
 2. Lecturer
 3. Trainer
 4. Student
 
-Enter choice: 4
+Enter choice: 1
 
 Action:
 1. Login
 2. Register
 
 Enter choice: 2
-=== Register as Student ===
-Name: John Doe
-Password: secure123
-
-Registration successful!
-
----
-
-# Second Run - Login
-$ python main.py
-
-Enter as:
-1. Administrator
-2. Lecturer
-3. Trainer
-4. Student
-
-Enter choice: 4
-
-Action:
-1. Login
-2. Register
-
-Enter choice: 1
-
-Logging in as Student...
-Name: John Doe
-Password: secure123
-
-Login successful!
-[Student Dashboard appears]
+=== Register as administrator ===
+Name: demo_admin
+Password: <your-password>          # echoed on screen; input() is used
+$                                  # program ends, nothing is printed
 ```
 
----
-
-## 📁 Project Structure
+Run `python main.py` again, choose `1`, then `1` (Login), and enter the same name and password:
 
 ```
-apu_cafe-main/
-│
-├── main.py                          # 🚀 Application Entry Point
-├── utils.py                         # 🔧 Utility Functions
-├── student.py                       # Legacy Student Operations
-├── student display.py               # Legacy Student Display
-│
-├── api/                             # 📡 API & Business Logic Layer
-│   ├── __init__.py
-│   ├── user.py                      # User Authentication & Management
-│   ├── student.py                   # Student Operations
-│   ├── lecturer.py                  # Lecturer Operations
-│   ├── trainer.py                   # Trainer Operations
-│   ├── administrator.py             # Administrator Operations
-│   ├── module.py                    # Course/Module Management
-│   ├── feedback.py                  # Feedback Collection
-│   └── __pycache__/
-│
-├── display/                         # 🖥️ CLI Interface Layer
-│   ├── __init__.py
-│   ├── student.py                   # Student Dashboard Interface
-│   ├── lecturer.py                  # Lecturer Dashboard Interface
-│   ├── trainer.py                   # Trainer Dashboard Interface
-│   ├── administrator.py             # Administrator Dashboard Interface
-│   └── __pycache__/
-│
-├── database/                        # 💾 Data Storage Layer
-│   ├── administrators.json          # Admin user data
-│   ├── lecturers.json              # Lecturer profiles
-│   ├── trainers.json               # Trainer profiles
-│   ├── students.json               # Student profiles & records
-│   ├── modules.json                # Course/Module definitions
-│   └── feedbacks.json              # User feedback & complaints
-│
-├── __pycache__/                     # Python cache files
-├── README.md                        # 📖 This File
-├── BUG_ANALYSIS.md                 # 🐛 Bug Documentation
-├── FIXES_SUMMARY.md                # ✅ Fixes Applied
-├── REQUIREMENTS_VALIDATION_REPORT.md # 📋 Requirements Checklist
-└── .gitignore                       # Git ignore rules
+Logging in as Administrator...
+Name: demo_admin
+Password: <your-password>
 ```
 
----
+The administrator dashboard appears:
 
-## 📚 File Documentation
-
-### Entry Point
-
-#### `main.py` (63 lines)
-**Purpose:** Application entry point and role routing
-
-**Key Functionality:**
-- Displays role selection menu (Administrator, Lecturer, Trainer, Student)
-- Handles user authentication (login/registration)
-- Routes users to their role-specific dashboard
-- Manages subprocess execution for display modules
-
-**Main Functions:**
-- `handle_login()` - Authenticates user credentials
-- `handle_register()` - Creates new user accounts
-
-**Example Usage:**
-```python
-# When login is successful, routes to display module:
-subprocess.run(["python", "-m", f"display.{type}", status["id"]], cwd=script_dir)
 ```
-
----
-
-### Utility Module
-
-#### `utils.py` (11 lines)
-**Purpose:** Shared utility functions across the application
-
-**Functions:**
-- `select(message, items)` - Interactive menu selection helper
-  - Displays a numbered list of items
-  - Validates user input
-  - Returns selected item
-
-**Example:**
-```python
-role = select("Choose your role:", ["Student", "Lecturer", "Admin"])
-```
-
----
-
-### API Layer (Business Logic)
-
-#### `api/user.py`
-**Purpose:** Central authentication and user management hub
-
-**Key Functions:**
-- `check(type, username, password)` - Authenticates user credentials
-- `load_data(type)` - Loads user data from JSON
-- `set(type, id, key, value)` - Updates user data
-- `get(type, username)` - Retrieves user by username
-- `register(type, name, password)` - Creates new user account
-
-**Data Flow:**
-```python
-user.check("student", "john", "pass123")
-→ Returns: {"exists": True, "match": True, "id": "uuid-123"}
-```
-
----
-
-#### `api/student.py`
-**Purpose:** Student-specific operations and management
-
-**Key Functions:**
-- `change_password(student_id, new_password)` - Update password
-- `change_contact(student_id, new_contact)` - Update contact info
-- `change_address(student_id, new_address)` - Update address
-- `add_module(student_id, module_id)` - Enroll in a course
-- `pay_invoice(student_id, invoice_id)` - Record payment
-- `add_request(student_id, request_data)` - Submit request
-- `delete_request(student_id, request_id)` - Cancel request
-- `delete(student_id)` - Delete student account
-
-**Features:**
-- Personal information management
-- Course enrollment tracking
-- Invoice and payment management
-- Request submission system
-
----
-
-#### `api/lecturer.py`
-**Purpose:** Lecturer profile and information management
-
-**Key Functions:**
-- `get_all()` - Retrieve all lecturers
-- `get(lecturer_id)` - Get specific lecturer
-- `change_name(lecturer_id, new_name)` - Update name
-- `change_qualification(lecturer_id, new_qualification)` - Update qualifications
-- `change_department(lecturer_id, new_department)` - Update department
-
-**Data Managed:**
-- Lecturer profiles
-- Qualifications and certifications
-- Department assignments
-
----
-
-#### `api/trainer.py`
-**Purpose:** Trainer management and feedback operations
-
-**Key Functions:**
-- `get_all()` - Retrieve all trainers
-- `get(trainer_id)` - Get specific trainer
-- `add_feedback(trainer_id, feedback_data)` - Collect trainer feedback
-
-**Features:**
-- Trainer profile management
-- Feedback collection
-- Performance tracking
-
----
-
-#### `api/administrator.py`
-**Purpose:** Administrator authentication and system oversight
-
-**Key Functions:**
-- `check(name, password)` - Admin authentication
-- `get_all()` - Retrieve all admins
-
-**Responsibilities:**
-- System authentication
-- Administrative access control
-
----
-
-#### `api/module.py`
-**Purpose:** Complete course/module management system
-
-**Key Functions:**
-- `create(name, lecturer_id, language, level)` - Create new module
-- `add_schedule(module_id, schedule_data)` - Add course schedule
-- `remove_schedule(module_id, schedule_id)` - Remove schedule
-- `edit_schedule(module_id, schedule_id, new_data)` - Edit schedule
-- `add_student(module_id, student_id)` - Enroll student
-- `pay_student_invoice(module_id, student_id, amount)` - Process payment
-- `remove_student(module_id, student_id)` - Remove from course
-- `delete(module_id)` - Delete module
-- `get_filtered_modules(language, level)` - Search/filter modules
-
-**Module Properties:**
-```json
-{
-  "id": "uuid",
-  "name": "Module Name",
-  "lecturer_id": "uuid",
-  "language": "English",
-  "level": "Intermediate",
-  "schedules": [],
-  "students": [],
-  "invoices": {}
-}
-```
-
----
-
-#### `api/feedback.py`
-**Purpose:** Feedback and complaint collection system
-
-**Key Functions:**
-- `add_suggestion(name, suggestion)` - Record suggestions
-- `add_complaint(name, complaint)` - Record complaints
-- `get_all()` - Retrieve all feedback
-- `get_complaints()` - Get all complaints
-- `get_suggestions()` - Get all suggestions
-
-**Feedback Types:**
-- Suggestions (improvements, ideas)
-- Complaints (issues, problems)
-
----
-
-### Display Layer (CLI Interfaces)
-
-#### `display/student.py`
-**Purpose:** Student dashboard and interactive interface
-
-**Features Provided:**
-- View profile
-- Update password, contact, address
-- Enroll in modules
-- View enrolled modules
-- View and manage invoices
-- Submit and manage requests
-- Access feedback system
-
-**Interface:**
-```
-=== Student Dashboard ===
-1. View Profile
-2. Update Password
-3. Update Contact
-4. Update Address
-5. Add Module
-6. View Modules
-7. Pay Invoice
-8. Add Request
-9. View Requests
-10. Exit
-```
-
----
-
-#### `display/lecturer.py`
-**Purpose:** Lecturer dashboard and operations
-
-**Features Provided:**
-- View profile
-- Update name, qualifications, department
-- View assigned modules
-- View enrolled students
-- Manage course schedules
-
-**Interface:**
-```
-=== Lecturer Dashboard ===
-1. View Profile
-2. Update Name
-3. Update Qualifications
-4. Update Department
-5. View Modules
-6. View Students
-7. Exit
-```
-
----
-
-#### `display/trainer.py`
-**Purpose:** Trainer dashboard and feedback management
-
-**Features Provided:**
-- View trainer profile
-- Submit feedback
-- View all feedbacks
-- Performance tracking
-
-**Interface:**
-```
-=== Trainer Dashboard ===
-1. View Profile
-2. Submit Feedback
-3. View Feedbacks
+Administrator Dashboard
+1. Edit profile
+2. Manage trainer
+3. View feedbacks
 4. Exit
+
+Enter choice:
 ```
 
----
-
-#### `display/administrator.py`
-**Purpose:** Administrator dashboard with system-wide controls
-
-**Features Provided:**
-- View all users by role
-- View all modules
-- View all feedback and complaints
-- System statistics
-- User management
-
-**Interface:**
-```
-=== Administrator Dashboard ===
-1. View All Users
-2. View All Modules
-3. View All Feedback
-4. View Complaints
-5. View Suggestions
-6. Exit
-```
+Wrong inputs seen at the first prompt: a wrong password prints `Wrong password!`; an unknown name prints `User does not exist!`; a letter instead of a number raises an unhandled `ValueError`.
 
 ---
 
-### Database Files
+## Troubleshooting
 
-#### `database/administrators.json`
-**Purpose:** Administrator account storage
-
-**Structure:**
-```json
-[
-  {
-    "id": "unique-uuid",
-    "name": "Admin Name",
-    "password": "plain-text-password"
-  }
-]
-```
+| Problem | What to check |
+|---|---|
+| `IndentationError` / `SyntaxError` right after logging in | Use the repaired source from the current branch and Python 3.10+. Run the regression checks to verify your checkout |
+| `FileNotFoundError: 'python'` after logging in | `main.py` launches `"python"`, not the running interpreter. Ensure a `python` executable or shim is on `PATH`, or change the subprocess command to use `sys.executable`. Shell aliases are not used by this subprocess call |
+| `SyntaxError` on a `match` line | Python is older than 3.10 |
+| `FileNotFoundError: database/...json` | Start from the repository root; `api/student.py` and parts of `api/lecturer.py` open relative paths |
+| `KeyError: 'lecturer'` / `'modules'` / `'requests'` for a user created from the login menu | Menu registration creates only `{id, name, password}`. Create students through a lecturer and trainers through an administrator instead |
+| A second user with the same name cannot log in | Login uses the first record with that name; the sample administrators file contains two `john` rows and only the first can ever log in |
+| Changes seem to vanish | Each running dashboard keeps its own in-memory copy and rewrites the whole file; the last process to save wins. Run one session at a time |
 
 ---
 
-#### `database/students.json`
-**Purpose:** Student profiles and academic records
+## Issues found
 
-**Structure:**
-```json
-[
-  {
-    "id": "unique-uuid",
-    "name": "Student Name",
-    "password": "plain-text-password",
-    "contact": "+1234567890",
-    "address": "123 Main St",
-    "modules": ["module-uuid-1", "module-uuid-2"],
-    "requests": [
-      {
-        "id": "request-uuid",
-        "type": "support",
-        "message": "Request text"
-      }
-    ],
-    "invoices": {
-      "module-uuid": 500.00
-    }
-  }
-]
-```
+The startup-blocking syntax damage is fixed and covered by the regression checks. The following issues remain; most are code-review findings rather than exhaustive runtime reproductions. File and function names identify the relevant paths.
 
----
+**Interpreter and functional issues**
 
-#### `database/lecturers.json`
-**Purpose:** Lecturer profiles and information
+1. `main.py` launches `"python"` rather than `sys.executable`; that command must resolve to the intended interpreter.
 
-**Structure:**
-```json
-[
-  {
-    "id": "unique-uuid",
-    "name": "Lecturer Name",
-    "password": "plain-text-password",
-    "qualifications": "M.Sc, B.Sc",
-    "department": "Computer Science",
-    "modules": ["module-uuid-1"]
-  }
-]
-```
+**Functional bugs**
+
+2. **Login-menu registration builds incomplete records** (`api/user.py` lines 34-41). A new lecturer has no `requests`, a student has no `lecturer`, `modules` or `requests`, and a trainer has no `modules` or `feedbacks`, so role-specific dashboard actions can raise `KeyError` when they need those missing fields. `api/lecturer.register` also creates `"requests": []` (a list) while all other code treats it as a dictionary.
+3. **Feedback sender mismatch.** `display/trainer.py` line 17 stores the trainer's **name** as `sender`, but `display/administrator.py` line 83 looks the sender up **by id** with `trainer.get(...)["name"]`, so any newly sent feedback makes the admin view fail with a `TypeError`. The sample `feedbacks.json` stores ids, so the sample data hides the bug.
+4. `display/administrator.py` lines 70-73: `max()` over an empty list raises `ValueError` when there is no feedback.
+5. `display/trainer.py` line 97 calls `view_students()`, which is defined inside a different function (line 118), so choosing "View students" in the schedule menu raises `NameError`. Line 120 also passes a dictionary (`{"id": ...}`) to `student.get`, which expects an id string, so even the working copy would raise `TypeError`.
+6. "Edit trainer" (administrator), "Approve enrolment requests" in the lecturer's student menu, and trainer "View all students" are unimplemented and end the program.
+7. `register_student()` in `display/lecturer.py` calls `randint(0, len(...) - 1)` without checking for an empty list of matching modules. This raises `ValueError` **after** the student has already been saved, leaving a student with no modules. The separate request-approval path checks for no matches before choosing a module.
+8. Deleting a trainer deletes their modules but not the students' enrolments in those modules (`display/student.py` would then fail with `KeyError` in the schedule view). Deleting a student does not remove their pending request from the lecturer's list (the sample `lecturers.json` has a request from a sender that does not exist in `students.json`).
+9. Invoice state is duplicated and inconsistent; the sample data already shows it (a module with student invoice `0` in `students.json` but `1000` in `modules.json`). `trainers.json` also lists a module id that is not in `modules.json`.
+10. Unvalidated input: most menus use bare `int(input())` calls that crash on a letter or empty line, and `strptime` crashes on a bad date. Entering `0` at the role prompt selects "student" because `roles[-1]` is used (`main.py` line 23).
+11. User names are not unique when users are created by administrators or lecturers, and `check` stops at the first match.
+12. No login attempt limit, no password rules (except the unreachable legacy file), no way to reset a password.
+13. Some functions open `"database/....json"` relative to the current directory (`api/student.py` throughout, `api/lecturer.py` line 68), while others use paths relative to the file. Several handles are never closed (`api/user.py` line 8).
+14. `display/trainer.py` line 1 contains a TODO comment with profanity.
+
+**Repository hygiene**
+
+15. `.DS_Store` and cached Python bytecode were tracked in the original upload. They are now untracked and covered by `.gitignore`; historical commits still contain them.
+16. Runtime data (`database/*.json`) is committed and will be overwritten by normal use.
 
 ---
 
-#### `database/trainers.json`
-**Purpose:** Trainer profiles
+## Security and privacy notes
 
-**Structure:**
-```json
-[
-  {
-    "id": "unique-uuid",
-    "name": "Trainer Name",
-    "password": "plain-text-password",
-    "specialization": "Web Development"
-  }
-]
-```
+- **Plain-text passwords everywhere.** Passwords are saved unhashed in all four user files and compared with `==`. The default password for trainers and students created by an administrator or lecturer is the literal `123` (`api/trainer.py` line 33, `api/student.py` line 111).
+- **Sample accounts with trivial passwords are public.** `database/administrators.json` lines 2-4 hold three administrators (two with the same name), and the other user files hold accounts whose passwords are `123`. These are test accounts, but anyone can read them; do not reuse these values and remove or regenerate them before deploying anything.
+- **No real personal data was found in `database/`.** Names are single words, the TP number, contact number and address of the sample student are all `123`, and the email is derived from the TP number. The feedback entries contain jokes and one profane message (`database/feedbacks.json` lines 10 and 20); consider rewriting them.
+- **The documentation PDF contains personal details and signatures.** It is kept locally, listed in `.gitignore`, and removed from the current tracked files. It remains downloadable from older commits because repository history has not been rewritten for this file.
+- **No authorisation checks inside dashboards.** The user id is a command-line argument; anyone who can run `python -m display.administrator <any-id>` gets that dashboard, and the id is never verified (expected).
+- **No concurrency protection.** Whole-file rewrites from multiple processes can lose data.
+- `.DS_Store`, `__pycache__/`, bytecode and the local documentation PDF are now ignored. The six bundled JSON files remain tracked to preserve the runnable coursework example; do not replace them with real personal records in a public repository.
 
 ---
 
-#### `database/modules.json`
-**Purpose:** Course and module definitions
+## The documentation PDF versus the code
 
-**Structure:**
-```json
-[
-  {
-    "id": "unique-uuid",
-    "name": "Python Programming",
-    "lecturer_id": "lecturer-uuid",
-    "language": "English",
-    "level": "Beginner",
-    "schedules": [
-      {
-        "id": "schedule-uuid",
-        "day": "Monday",
-        "time": "10:00 AM",
-        "room": "101"
-      }
-    ],
-    "students": ["student-uuid-1", "student-uuid-2"],
-    "invoices": {
-      "student-uuid-1": 500.00
-    }
-  }
-]
-```
+The local-only `APU Programming Cafe Management System Documentation.pdf` is a roughly 121-page assignment report: assumptions, pseudocode and code listings per team member, explanation of programming concepts, additional features, sample input/output screenshots for every menu, a conclusion and a work-breakdown table. I read the cover, table of contents, introduction and assumptions, the first code pages, the additional-features and sample-output start (pages 73-77) and the conclusion. The report describes a more complete program than this repository contains:
+
+| The report says | The code in this repository |
+|---|---|
+| The external library `tabulate` must be installed (`python -m pip install tabulate`) | No file imports `tabulate`; everything uses `print` |
+| Wrong passwords give a limited number of attempts (4 chances) | One attempt, then the program ends |
+| `utils.py` has `red`, `green`, `bold` and `input_number` helpers | `utils.py` only has `select`, and it has its own validation loop. Colors are defined only in the legacy `student display.py` |
+| Registering as administrator gives the password `123`; registration continues to the dashboard | The password typed by the user is saved and nothing else happens |
+| Trainer salary is computed as 1000 / 1500 / 2000 per enrolled student for beginner / intermediate / advanced | No salary code; `display/trainer.py` has a TODO about "charges" |
+| Administrators can filter feedback by type (`display/administrator.py` lines 283-338) | The file has 113 lines and no filter |
+| `api/student.py` wraps file loading in a `FileNotFoundError` handler | No error handling |
+| Students must change the default password `123` on first login | Matches: default is `123`, but nothing forces a change |
+| Unpaid modules hide the schedule | Matches (`display/student.py`) |
+
+So the report is useful for the intended design and screenshots, but it is not an accurate description of this code.
 
 ---
 
-#### `database/feedbacks.json`
-**Purpose:** User feedback, suggestions, and complaints
-
-**Structure:**
-```json
-[
-  {
-    "id": "unique-uuid",
-    "name": "User Name",
-    "type": "suggestion|complaint",
-    "message": "Feedback content",
-    "timestamp": "2026-01-28T10:30:00"
-  }
-]
-```
-
----
-
-## 🔐 Database Schema
-
-### User Entities
-
-```
-┌─────────────────────────────┐
-│      Administrator          │
-├─────────────────────────────┤
-│ id (UUID)                   │
-│ name (String)               │
-│ password (String)           │
-└─────────────────────────────┘
-
-┌─────────────────────────────┐
-│       Student               │
-├─────────────────────────────┤
-│ id (UUID)                   │
-│ name (String)               │
-│ password (String)           │
-│ contact (String)            │
-│ address (String)            │
-│ modules (Array<UUID>)       │
-│ requests (Array<Object>)    │
-│ invoices (Object<UUID>)     │
-└─────────────────────────────┘
-
-┌─────────────────────────────┐
-│       Lecturer              │
-├─────────────────────────────┤
-│ id (UUID)                   │
-│ name (String)               │
-│ password (String)           │
-│ qualifications (String)     │
-│ department (String)         │
-│ modules (Array<UUID>)       │
-└─────────────────────────────┘
-
-┌─────────────────────────────┐
-│       Trainer               │
-├─────────────────────────────┤
-│ id (UUID)                   │
-│ name (String)               │
-│ password (String)           │
-│ specialization (String)     │
-└─────────────────────────────┘
-```
-
-### Resource Entities
-
-```
-┌─────────────────────────────┐
-│       Module                │
-├─────────────────────────────┤
-│ id (UUID)                   │
-│ name (String)               │
-│ lecturer_id (UUID)          │
-│ language (String)           │
-│ level (String)              │
-│ schedules (Array<Object>)   │
-│ students (Array<UUID>)      │
-│ invoices (Object<UUID>)     │
-└─────────────────────────────┘
-
-┌─────────────────────────────┐
-│       Feedback              │
-├─────────────────────────────┤
-│ id (UUID)                   │
-│ name (String)               │
-│ type (String)               │
-│ message (String)            │
-│ timestamp (ISO-8601)        │
-└─────────────────────────────┘
-```
-
----
-
-## 📖 Usage Guide
-
-### Scenario 1: Student Registration and Course Enrollment
-
-```bash
-# Step 1: Run the application
-python main.py
-
-# Step 2: Select Student role
-# Choose: 1. Administrator 2. Lecturer 3. Trainer 4. Student
-# Enter: 4
-
-# Step 3: Select Register
-# Choose: 1. Login 2. Register
-# Enter: 2
-
-# Step 4: Enter student details
-# Name: Alice Johnson
-# Password: secure_pass
-
-# Step 5: In Student Dashboard
-# Choose: 5. Add Module
-# Enter: Select a module from the list
-
-# Step 6: View enrolled modules
-# Choose: 6. View Modules
-# Displays: All modules you're enrolled in
-```
-
----
-
-### Scenario 2: Lecturer Managing Courses
-
-```bash
-# Step 1: Run application and login as Lecturer
-python main.py
-# Select: 2 (Lecturer)
-# Action: 1 (Login)
-
-# Step 2: Access Lecturer Dashboard
-# Credentials: Existing lecturer account
-
-# Step 3: View assigned modules
-# Choose: 5. View Modules
-# Displays: All modules assigned to this lecturer
-
-# Step 4: View enrolled students
-# Choose: 6. View Students
-# Displays: Students in assigned modules
-```
-
----
-
-### Scenario 3: Administrator System Oversight
-
-```bash
-# Step 1: Login as Administrator
-python main.py
-# Select: 1 (Administrator)
-# Action: 1 (Login)
-
-# Step 2: Access Admin Dashboard
-# Choose: 1. View All Users
-# Displays: All users by role
-
-# Step 3: View all feedback
-# Choose: 3. View All Feedback
-# Displays: All user suggestions and complaints
-
-# Step 4: View system statistics
-# Choose: 5. View Suggestions
-# Or: 4. View Complaints
-```
-
----
-
-## 🎭 Role-Based Features
-
-### Administrator
-
-| Feature | Permission |
-|---------|-----------|
-| View All Users | ✅ |
-| Manage Roles | ✅ |
-| View System Statistics | ✅ |
-| Access Feedback | ✅ |
-| Manage Modules | ✅ |
-| System Configuration | ✅ |
-
-### Lecturer
-
-| Feature | Permission |
-|---------|-----------|
-| View Profile | ✅ |
-| Update Qualifications | ✅ |
-| Manage Modules | ✅ |
-| View Students | ✅ |
-| Manage Schedules | ✅ |
-| Submit Feedback | ✅ |
-
-### Trainer
-
-| Feature | Permission |
-|---------|-----------|
-| View Profile | ✅ |
-| Submit Feedback | ✅ |
-| View Feedbacks | ✅ |
-| Performance Tracking | ✅ |
-
-### Student
-
-| Feature | Permission |
-|---------|-----------|
-| View Profile | ✅ |
-| Update Password | ✅ |
-| Update Contact Info | ✅ |
-| Update Address | ✅ |
-| Enroll in Courses | ✅ |
-| View Invoices | ✅ |
-| Pay Invoices | ✅ |
-| Submit Requests | ✅ |
-| Submit Feedback | ✅ |
-
----
-
-## ⚙️ Configuration
-
-### User Configuration
-
-Users can customize their profiles:
-
-```python
-# Update student information
-api.student.change_password(student_id, "newpassword")
-api.student.change_contact(student_id, "+1-555-0123")
-api.student.change_address(student_id, "456 Oak Ave, City")
-
-# Update lecturer information
-api.lecturer.change_name(lecturer_id, "Dr. New Name")
-api.lecturer.change_qualification(lecturer_id, "Ph.D")
-```
-
-### Module Configuration
-
-```python
-# Create a new module
-api.module.create(
-    name="Advanced Python",
-    lecturer_id="lecturer-uuid",
-    language="English",
-    level="Advanced"
-)
-
-# Add course schedule
-api.module.add_schedule(
-    module_id="module-uuid",
-    schedule_data={
-        "day": "Tuesday",
-        "time": "2:00 PM",
-        "room": "201"
-    }
-)
-```
-
----
-
-## 🔍 Troubleshooting
-
-### Issue: FileNotFoundError: 'database/students.json' not found
-
-**Solution:**
-1. Ensure you're in the correct directory: `cd apu_cafe-main`
-2. Check that all database JSON files exist: `ls database/`
-3. If missing, they will be created on first run
-
-### Issue: ModuleNotFoundError: No module named 'display'
-
-**Solution:**
-1. Run from the correct directory where `main.py` is located
-2. Use the full path: `python apu_cafe-main/main.py`
-3. Ensure `__init__.py` files exist in `api/` and `display/` directories
-
-### Issue: Invalid user input errors
-
-**Solution:**
-1. Enter numeric choices when prompted (1, 2, 3, etc.)
-2. Enter valid usernames and passwords
-3. Follow on-screen prompts carefully
-
-### Issue: Login fails even with correct credentials
-
-**Solution:**
-1. Check that the user was properly registered
-2. Ensure database files are not corrupted
-3. Verify password is case-sensitive
-4. Try registering again with a new account
-
-### Issue: Application crashes unexpectedly
-
-**Solution:**
-1. Check Python version: `python --version` (requires 3.7+)
-2. Verify all database files are present and readable
-3. Check for file permission issues
-4. Review error messages in terminal output
-
----
-
-## 🐛 Known Issues & Fixes
-
-### Fixed Issues
-
-✅ **Loop Variable Shadowing** - Fixed in `api/student.py`
-- Function parameters no longer shadow iterator variables
-
-✅ **FileNotFoundError** - Fixed with absolute path handling
-- All file operations now use absolute paths
-
-✅ **Resource Leaks** - Fixed with context managers
-- All file operations use `with` statements
-
-✅ **Parameter Typos** - Fixed in `api/lecturer.py` and `api/module.py`
-- All parameter names are now correct
-
----
-
-## 📦 Dependencies
-
-**No External Dependencies Required!**
-
-The project uses only Python Standard Library modules:
-
-```python
-import subprocess  # Process management
-import json        # Data serialization
-import os          # File path operations
-import uuid        # Unique ID generation
-```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how to contribute:
-
-1. **Fork the repository**
-   ```bash
-   git clone https://github.com/yourusername/apu-cafe-management.git
-   ```
-
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Make your changes** and test thoroughly
-
-4. **Commit with clear messages**
-   ```bash
-   git commit -m "Add feature: description of changes"
-   ```
-
-5. **Push to your fork**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-6. **Create a Pull Request** with detailed description
-
-### Contribution Guidelines
-
-- Follow the existing code style
-- Add comments for complex logic
-- Test all changes thoroughly
-- Update documentation as needed
-- Keep commits focused and atomic
-
----
-
-## 📋 Future Enhancements
-
-Potential features for future versions:
-
-- [ ] **Database Migration** - Migrate from JSON to SQLite
-- [ ] **Password Hashing** - Implement bcrypt for security
-- [ ] **User Sessions** - Add session management
-- [ ] **Logging System** - Implement audit logging
-- [ ] **Email Notifications** - Send notifications to users
-- [ ] **Web API** - REST API for web clients
-- [ ] **GUI Interface** - Desktop GUI using tkinter/PyQt
-- [ ] **Data Export** - Export reports to CSV/PDF
-- [ ] **Backup System** - Automated database backup
-- [ ] **Multi-language Support** - Internationalization
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-```
-MIT License
-
-Copyright (c) 2026 APU Café Management System
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
-
----
-
-## 📧 Support & Contact
-
-**Project Maintainer:** Faiyad Mahabub Tasin  
-**Email:** faiyaadtasin121@gmail.com  
-**GitHub:** https://github.com/faiyaadmahabub-hash
-
-For issues, questions, or suggestions:
-- Open an Issue on GitHub
-- Check existing documentation
-- Review troubleshooting section
-
----
-
-## 🎓 Educational Value
-
-This project demonstrates:
-
-- ✅ Object-oriented programming principles
-- ✅ Role-based access control (RBAC)
-- ✅ Layered architecture design
-- ✅ File I/O and data persistence
-- ✅ Interactive CLI development
-- ✅ Code organization and modularity
-- ✅ Error handling best practices
-- ✅ Data validation and integrity
-- ✅ Professional code documentation
-
----
-
-## 📊 Project Statistics
-
-| Metric | Value |
-|--------|-------|
-| Total Files | 15+ |
-| Lines of Code | 1500+ |
-| Core Modules | 7 |
-| Display Interfaces | 4 |
-| Database Files | 6 |
-| User Roles | 4 |
-| Key Features | 20+ |
-| Documentation Files | 4 |
-
----
-
-## 🎉 Credits
-
-- **Developer:** Faiyad Mahabub Tasin
-- **Institution:** Asia Pacific University
-- **Course:** Python Programming
-- **Version:** 1.0
-- **Last Updated:** January 28, 2026
-
----
-
-## 📌 Quick Reference
-
-### Common Commands
-
-```bash
-# Run the application
-python main.py
-
-# Check Python version
-python --version
-
-# List project structure
-tree apu_cafe-main/
-
-# View a specific file
-cat api/student.py
-
-# Check database files
-ls database/
-
-# Run tests (if available)
-python -m pytest tests/
-```
-
-### Quick Navigation
-
-- 📖 **Documentation:** See [README.md](README.md)
-
-
----
-
-**Happy Coding! 🚀**
-
+## Next steps
+
+The syntax repair, local-PDF ignore rule, cache cleanup and regression tests are included in this revision. Further improvements would be:
+
+1. Replace `"python"` with `sys.executable` in `main.py`, add a main guard, and use loops for menus.
+2. Hash passwords, limit login attempts, and require a change of default passwords.
+3. Build complete role-specific registration records and enforce unique names per role.
+4. Fix feedback sender IDs, student-list handlers and empty-data cases.
+5. Keep invoice state in one place and clean up relationships when deleting trainers or students.
+6. Implement unfinished menu choices and validate numeric and date inputs.
+7. Separate sample data from runtime storage and replace whole-file rewrites with safer persistence.
+8. Extend the tests to cover the remaining Issues before claiming complete workflow support.
