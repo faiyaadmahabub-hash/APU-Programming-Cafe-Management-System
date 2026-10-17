@@ -1,0 +1,31 @@
+APU Programming Cafe | fictional temporary data | 2026-10-17
+Dashboard run: python -B main.py (prompt-fed replies shown below)
+Enter as:
+1. Administrator
+2. Lecturer
+3. Trainer
+4. Student
+Enter choice: 1
+ 
+Action:
+1. Login
+2. Register
+Enter choice: 1
+ 
+Logging in as Administrator...
+Name: Demo administrator
+ Password: demo-only
+ 
+Administrator Dashboard
+1. Edit profile
+2. Manage trainer
+3. View feedbacks
+4. Exit
+Enter choice: 4
+ 
+API persistence demonstration:
+Module: Python demo
+Schedule: 2026-11-02T10:00:00
+Student invoice after module API payment: 0
+Module deletion persisted: yes
+Temporary records removed on exit; bundled database unchanged.
